@@ -156,13 +156,13 @@ that, which is why cues come from hooks: zero round trips. [The full write-up](d
   into one. The lightbulb in the menu bar fills with the cue's colour while an agent is
   waiting.
   `glimt app install` builds it on your Mac in a few seconds (needs Apple's command
-  line tools: `xcode-select --install`).
+  line tools: `xcode-select --install`). [Everything it does](docs/menu-bar.md)
 - **Dashboard.** `glimt open`.
 - **Apple Home.** Export every device to the Home app, Siri and Shortcuts, with changes
   pushed instantly rather than polled. Works on your home Wi-Fi; from outside, Apple
   needs a HomePod or Apple TV in the house. [Setup](docs/homekit.md)
 
-<img src="docs/images/menubar-dark.png" width="296" alt="The Glimt menu bar panel while an agent is waiting for approval"> <img src="docs/images/menubar-device.png" width="296" alt="One device's controls: brightness, colour, effect and speed">
+<img src="docs/images/menubar.png" width="296" alt="The Glimt menu bar panel: a room as tiles, with lights, outlets, an air conditioner, a fan and an LED strip"> <img src="docs/images/menubar-device.png" width="296" alt="One device's controls: power, brightness, colour, effect and speed">
 
 ## Private by design
 
@@ -183,6 +183,7 @@ that, which is why cues come from hooks: zero round trips. [The full write-up](d
 | [Where to run it](docs/where-to-run.md) | a Mac, Linux, a Raspberry Pi, next to Home Assistant; what works where |
 | [Cues](docs/signals.md) | built-in cues, custom cues, quiet hours, which lights are used |
 | [Agents](docs/connecting-agents.md) | hooks, MCP tools, prompts that work well |
+| [Menu bar app](docs/menu-bar.md) | the macOS app: tiles, who is waiting, mute, approving a cloud app |
 | [Remote access](docs/remote.md) | ChatGPT, dots and other cloud agents; what is exposed and what is not |
 | [Configuration](docs/config.md) | every key in `config.toml` |
 | [Writing a bridge](docs/bridges.md) | the contract, for people and for agents |
