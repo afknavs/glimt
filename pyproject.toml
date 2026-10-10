@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "glimt"
+version = "0.1.0"
+description = "Cue lights for AI agents: let your agents get your attention through the lights and speakers in your room."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+keywords = ["mcp", "smart-home", "ai-agents", "ambient", "notifications", "tuya", "homekit", "wled", "hue"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Home Automation",
+  "Topic :: Software Development",
+]
+dependencies = [
+  "mcp>=2.0",
+  "starlette>=0.40",
+  "uvicorn>=0.30",
+  "httpx>=0.27",
+  "tomli-w>=1.0",
+]
+
+[project.optional-dependencies]
+tuya = ["tinytuya>=1.15", "tuya-device-sharing-sdk>=0.2.1", "qrcode>=7"]
+ble = ["bleak>=0.22"]
+homekit = ["HAP-python>=4.9"]
+homeassistant = ["websockets>=12"]
+all = ["glimt[tuya,ble,homekit,homeassistant]"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+glimt = "glimt.cli:main"
+
+[project.entry-points."glimt.bridges"]
+# Third-party packages register bridges here: name = "package.module:BridgeClass"
+
+[project.urls]
+Homepage = "https://github.com/afknavs/glimt"
+Documentation = "https://github.com/afknavs/glimt/tree/main/docs"
+Issues = "https://github.com/afknavs/glimt/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/glimt"]
+
+# The menu bar app is built on the user's Mac by `glimt app install`, so its sources ride along.
+[tool.hatch.build.targets.wheel.force-include]
+"app/macos/Sources" = "glimt/_menuapp/Sources"
+"app/macos/build.sh" = "glimt/_menuapp/build.sh"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

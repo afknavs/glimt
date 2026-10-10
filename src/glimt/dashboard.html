@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Glimt</title>
+<style>
+  :root { color-scheme: light dark; --bg:#f2f2f7; --tile:#fff; --ink:#1c1c1e; --dim:#8e8e93; --line:#e5e5ea; --on:#1c1c1e; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#000; --tile:#1c1c1e; --ink:#f2f2f7; --dim:#8e8e93; --line:#2c2c2e; --on:#f2f2f7; } }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:28px 16px 48px; }
+  header { display:flex; align-items:baseline; justify-content:space-between; margin:0 4px 18px; }
+  h1 { font-size:28px; font-weight:700; letter-spacing:-.02em; margin:0; }
+  #status { color:var(--dim); font-size:13px; }
+  h2 { font-size:13px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.04em; margin:26px 4px 8px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+  .tile { background:var(--tile); border-radius:18px; padding:14px; min-height:104px; display:flex; flex-direction:column; justify-content:space-between; cursor:pointer; user-select:none; transition:transform .12s ease, opacity .2s; border:0; text-align:left; color:inherit; font:inherit; }
+  .tile:active { transform:scale(.97); }
+  .tile.off .dot { background:var(--line); color:var(--dim); }
+  .tile.offline { opacity:.45; }
+  .dot { width:36px; height:36px; border-radius:50%; display:grid; place-items:center; background:var(--on); color:var(--tile); transition:background .25s; }
+  .dot svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .name { font-weight:600; margin-top:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sub { color:var(--dim); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cues { display:flex; gap:8px; flex-wrap:wrap; }
+  .cue { border:0; border-radius:999px; padding:9px 15px 9px 11px; background:var(--tile); color:var(--ink); font:inherit; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px; }
+  .cue i { width:12px; height:12px; border-radius:50%; display:block; }
+  .cue:active { transform:scale(.96); }
+  .panel { background:var(--tile); border-radius:18px; padding:16px; margin-top:10px; display:none; }
+  .panel.show { display:block; }
+  .row { display:flex; align-items:center; gap:12px; margin:8px 0; }
+  .row label { width:92px; color:var(--dim); font-size:13px; }
+  input[type=range] { flex:1; accent-color:var(--ink); }
+  .swatches { display:flex; gap:10px; flex-wrap:wrap; }
+  .swatch { width:28px; height:28px; border-radius:50%; border:0; cursor:pointer; box-shadow:inset 0 0 0 1px rgba(128,128,128,.25); }
+  .seg { display:flex; background:var(--bg); border-radius:9px; padding:2px; flex:1; }
+  .seg button { flex:1; border:0; background:none; color:var(--ink); font:inherit; font-size:13px; padding:6px 4px; border-radius:7px; cursor:pointer; }
+  .seg button.sel { background:var(--tile); box-shadow:0 1px 3px rgba(0,0,0,.18); font-weight:600; }
+  .step { display:flex; align-items:center; gap:14px; flex:1; }
+  .step button, .act { border:0; background:var(--bg); color:var(--ink); border-radius:999px; min-width:34px; height:34px; padding:0 12px; font:inherit; font-size:15px; cursor:pointer; }
+  .big { font-size:26px; font-weight:300; font-variant-numeric:tabular-nums; }
+  #log { color:var(--dim); font-size:13px; margin:10px 4px 0; min-height:18px; }
+  #gate { text-align:center; padding:80px 20px; color:var(--dim); }
+</style>
+<main>
+  <header><h1>Glimt</h1><span id="status">connecting…</span></header>
+  <div id="gate" hidden>Open this page with <b>glimt open</b> so it can sign in to your local daemon.</div>
+  <div id="app" hidden>
+    <h2>Cues</h2>
+    <div class="cues" id="cues"></div>
+    <div id="log"></div>
+    <h2>Devices</h2>
+    <div class="grid" id="grid"></div>
+    <div class="panel" id="panel"></div>
+  </div>
+</main>
+<script>
+const ICONS = {
+  light:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.3 1 2.2h5.2c0-.9.4-1.7 1-2.2A6 6 0 0 0 12 3z"/>',
+  outlet:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9.5 9.5v3M14.5 9.5v3M12 15.5v1"/>',
+  switch:'<rect x="3" y="8" width="18" height="8" rx="4"/><circle cx="16.5" cy="12" r="2"/>',
+  climate:'<path d="M12 3v18M4.2 7.5l15.6 9M19.8 7.5l-15.6 9M9.5 4.5 12 7l2.5-2.5M9.5 19.5 12 17l2.5 2.5"/>',
+  fan:'<circle cx="12" cy="12" r="1.6"/><path d="M12 10.4c0-3.6-.4-6.4 2-6.4 2.6 0 3 3.6-.4 6.900M13.4 12.8c3.100 1.800 5.700 2.900 4.500 5-1.300 2.200-4.600.800-5.700-3.800M10.600 12.800c-3.100 1.800-5.300 3.500-6.500 1.400-1.300-2.200 1.600-4.400 6.100-3.100"/>',
+  speaker:'<path d="M5 9.500v5h3.200L13 18.500v-13L8.200 9.500H5zM16.200 9a4.200 4.200 0 0 1 0 6M18.600 6.600a7.600 7.600 0 0 1 0 10.800"/>',
+  other:'<circle cx="12" cy="12" r="8"/>'
+};
+const CUES = [["done","#30d158"],["attention","#ff9f0a"],["error","#ff453a"],["info","#0a84ff"],["working","#5e5ce6"]];
+const SWATCHES = ["#ffffff","#ff9a3c","#ff453a","#ff375f","#bf5af2","#5e5ce6","#0a84ff","#64d2ff","#30d158","#ffd60a"];
+const $ = id => document.getElementById(id);
+let token = sessionStorage.getItem("glimt-token");
+if (location.hash.startsWith("#token=")) { token = location.hash.slice(7); sessionStorage.setItem("glimt-token", token); history.replaceState(null, "", location.pathname); }
+let devices = {}, selected = null, signalActive = null;
+
+async function api(method, path, body) {
+  const r = await fetch(path, { method, headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json();
+  if (!r.ok) { $("log").textContent = j.error || "Request failed"; throw new Error(j.error); }
+  return j;
+}
+function subtitle(d) {
+  if (d.online === false) return "Unreachable";
+  const s = d.state;
+  if (d.kind === "climate" && s.power) return (s.temperature ?? "–") + "°" + (s.current_temperature != null ? " · room " + s.current_temperature + "°" : "");
+  if (s.power === false) return "Off";
+  if (s.power === true) return s.brightness != null && d.capabilities.brightness ? s.brightness + "%" : "On";
+  return d.actions.length ? d.actions.length + " actions" : "–";
+}
+function render() {
+  const grid = $("grid"); grid.replaceChildren();
+  for (const d of Object.values(devices)) {
+    const on = d.state.power === true, tile = document.createElement("button");
+    tile.className = "tile" + (on ? "" : " off") + (d.online === false ? " offline" : "");
+    const tint = on && d.state.color ? d.state.color : "";
+    tile.innerHTML = `<div class="dot" style="${tint ? "background:" + tint + ";color:#000" : ""}"><svg viewBox="0 0 24 24">${ICONS[d.kind] || ICONS.other}</svg></div><div><div class="name"></div><div class="sub"></div></div>`;
+    tile.querySelector(".name").textContent = d.name; tile.querySelector(".sub").textContent = subtitle(d);
+    tile.onclick = () => { if ("power" in d.capabilities) api("POST", "/v1/devices/" + d.id, { power: !on }); selected = d.id; panel(); };
+    grid.appendChild(tile);
+  }
+  panel();
+}
+function panel() {
+  const d = devices[selected], el = $("panel");
+  const extra = d && (Object.keys(d.capabilities).some(k => k !== "power") || d.actions.length);
+  el.className = "panel" + (extra ? " show" : ""); if (!extra) return;
+  el.replaceChildren();
+  const row = (label, node) => { const r = document.createElement("div"); r.className = "row"; const l = document.createElement("label"); l.textContent = label; r.append(l, node); el.appendChild(r); };
+  const set = changes => api("POST", "/v1/devices/" + d.id, changes);
+  for (const [key, spec] of Object.entries(d.capabilities)) {
+    if (key === "power") continue;
+    if (spec.type === "color") {
+      const box = document.createElement("div"); box.className = "swatches";
+      for (const c of SWATCHES) { const b = document.createElement("button"); b.className = "swatch"; b.style.background = c; b.title = c; b.onclick = () => set({ power: true, color: c }); box.appendChild(b); }
+      row("Colour", box);
+    } else if (spec.type === "int" && spec.max - spec.min > 40) {
+      const input = document.createElement("input"); input.type = "range"; input.min = spec.min; input.max = spec.max; input.value = d.state[key] ?? spec.min; input.onchange = () => set({ [key]: +input.value });
+      row(key[0].toUpperCase() + key.slice(1), input);
+    } else if (spec.type === "int") {
+      const box = document.createElement("div"); box.className = "step"; const value = d.state[key] ?? spec.min;
+      const minus = document.createElement("button"); minus.textContent = "−"; minus.onclick = () => set({ [key]: Math.max(spec.min, value - 1) });
+      const plus = document.createElement("button"); plus.textContent = "+"; plus.onclick = () => set({ [key]: Math.min(spec.max, value + 1) });
+      const big = document.createElement("span"); big.className = "big"; big.textContent = value + (spec.unit ? "°" : "");
+      box.append(minus, big, plus); row(key[0].toUpperCase() + key.slice(1), box);
+    } else if (spec.type === "enum") {
+      const seg = document.createElement("div"); seg.className = "seg";
+      for (const o of spec.options) { const b = document.createElement("button"); b.textContent = o; if (d.state[key] === o) b.className = "sel"; b.onclick = () => set({ [key]: o }); seg.appendChild(b); }
+      row(key[0].toUpperCase() + key.slice(1), seg);
+    } else if (spec.type === "bool") {
+      const seg = document.createElement("div"); seg.className = "seg";
+      for (const [label, v] of [["Off", false], ["On", true]]) { const b = document.createElement("button"); b.textContent = label; if (d.state[key] === v) b.className = "sel"; b.onclick = () => set({ [key]: v }); seg.appendChild(b); }
+      row(key[0].toUpperCase() + key.slice(1), seg);
+    }
+  }
+  if (d.actions.length) {
+    const box = document.createElement("div"); box.className = "swatches";
+    for (const a of d.actions) { const b = document.createElement("button"); b.className = "act"; b.textContent = a.replaceAll("_", " "); b.onclick = () => api("POST", `/v1/devices/${d.id}/actions/${a}`, {}); box.appendChild(b); }
+    row("Actions", box);
+  }
+}
+function cues() {
+  for (const [name, color] of CUES) { const b = document.createElement("button"); b.className = "cue"; b.innerHTML = `<i style="background:${color}"></i>`; b.append(name); b.onclick = () => api("POST", "/v1/signal", { name, source: "dashboard" }); $("cues").appendChild(b); }
+  const c = document.createElement("button"); c.className = "cue"; c.style.paddingLeft = "15px"; c.textContent = "clear"; c.onclick = () => api("DELETE", "/v1/signal"); $("cues").appendChild(c);
+}
+function note(s) { signalActive = s; $("log").textContent = s ? `${s.name}${s.message ? " — " + s.message : ""}${s.skipped ? " (skipped: " + s.skipped + ")" : ""}` : ""; }
+async function listen() {
+  try {
+    const r = await fetch("/v1/events", { headers: { Authorization: "Bearer " + token } });
+    if (!r.ok) throw new Error("auth");
+    $("status").textContent = "live"; $("app").hidden = false;
+    const reader = r.body.getReader(), decoder = new TextDecoder(); let buffer = "";
+    for (;;) {
+      const { value, done } = await reader.read(); if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let cut; while ((cut = buffer.indexOf("\n\n")) >= 0) {
+        const line = buffer.slice(0, cut); buffer = buffer.slice(cut + 2);
+        if (!line.startsWith("data: ")) continue;
+        const e = JSON.parse(line.slice(6));
+        if (e.type === "hello") { devices = Object.fromEntries(e.devices.map(d => [d.id, d])); note(e.signal); render(); }
+        else if (e.type === "device") { devices[e.device.id] = e.device; render(); }
+        else if (e.type === "signal") note(e.signal);
+      }
+    }
+  } catch (err) { if (String(err).includes("auth")) { $("gate").hidden = false; $("status").textContent = ""; return; } }
+  $("status").textContent = "reconnecting…"; setTimeout(listen, 1500);
+}
+if (!token) { $("gate").hidden = false; $("status").textContent = ""; } else { cues(); listen(); }
+</script>
+</html>

@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+dist/
+build/
+.DS_Store
+
+# Never commit a real setup: these hold credentials and pairing keys.
+.glimt/
+secrets/
+*.state
+token
+
+# Local notes that are not part of the project.
+/notes/

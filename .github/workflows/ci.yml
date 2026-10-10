@@ -1,0 +1,33 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e ".[all,dev]"
+      - run: python -m pytest -q
+      - name: The CLI starts, runs a demo home and passes its own checks
+        run: |
+          export GLIMT_HOME="$RUNNER_TEMP/glimt"
+          mkdir -p "$GLIMT_HOME"
+          printf '[bridges.virtual]\n\n[devices.lamp]\nbridge = "virtual"\nkind = "light"\ncapabilities = ["power", "brightness", "color"]\n' > "$GLIMT_HOME/config.toml"
+          glimt start
+          glimt signal done
+          glimt set lamp power=on color=teal
+          glimt devices
+          glimt bridge test virtual --write
+          glimt stop
